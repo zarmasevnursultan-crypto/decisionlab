@@ -21,15 +21,73 @@ const SECTION_TITLES: Record<EvidenceSection, string> = {
 
 export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
   const [section, setSection] = useState<Section>("incident");
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [now, setNow] = useState(0);
+  const [verdictMessage, setVerdictMessage] = useState("");
+  const [submittingSuspectId, setSubmittingSuspectId] = useState<string | null>(null);
+  const [solved, setSolved] = useState(false);
   const { case: theCase, suspects, evidence, source } = caseBundle;
   const foundEvidenceIds = useGameStore((state) => state.foundEvidenceIds);
+  const hintsUsed = useGameStore((state) => state.hintsUsed);
+  const usedHintIds = useGameStore((state) => state.usedHintIds);
   const clearEvidence = useGameStore((state) => state.clearEvidence);
   const markEvidenceFound = useGameStore((state) => state.markEvidenceFound);
+  const recordHint = useGameStore((state) => state.recordHint);
 
-  useEffect(() => clearEvidence(), [theCase.id, clearEvidence]);
+  useEffect(() => {
+    clearEvidence();
+    setStartedAt(null);
+    setSolved(false);
+    setVerdictMessage("");
+    void fetch("/api/case/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caseId: theCase.id }) })
+      .then(async (response) => response.ok ? response.json() as Promise<{ startedAt: string }> : null)
+      .then((session) => { if (session) setStartedAt(session.startedAt); })
+      .catch(() => {});
+  }, [theCase.id, clearEvidence]);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const foundEvidence = evidence.filter((item) => foundEvidenceIds.includes(item.id));
   const bySection = (key: EvidenceSection) => evidence.filter((item) => item.section === key);
+  const elapsedSeconds = startedAt ? Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)) : 0;
+  const remainingSeconds = Math.max(0, 30 * 60 - elapsedSeconds);
+  const timerLabel = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+  const score = Math.max(0, 100 - hintsUsed * 10 - Math.floor(elapsedSeconds / 30));
+
+  async function accuse(suspectId: string) {
+    setSubmittingSuspectId(suspectId);
+    setVerdictMessage("");
+    try {
+      const response = await fetch("/api/case/verdict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ suspect_id: suspectId }) });
+      const result: unknown = await response.json();
+      if (!response.ok || !result || typeof result !== "object" || !("correct" in result) || typeof result.correct !== "boolean") {
+        setVerdictMessage("Не удалось принять вердикт. Попробуйте ещё раз.");
+      } else if (result.correct) {
+        setSolved(true);
+        setVerdictMessage("Вердикт верный. Дело раскрыто.");
+      } else {
+        setVerdictMessage("Доказательств недостаточно для этого обвинения.");
+      }
+    } catch {
+      setVerdictMessage("Не удалось принять вердикт. Проверьте соединение и попробуйте ещё раз.");
+    } finally {
+      setSubmittingSuspectId(null);
+    }
+  }
+
+  async function useHint(evidenceId: string) {
+    if (usedHintIds.includes(evidenceId)) return;
+    try {
+      const response = await fetch("/api/case/hint", { method: "POST" });
+      if (!response.ok) return;
+      const result = await response.json() as { hintsUsed: number };
+      recordHint(evidenceId, result.hintsUsed);
+    } catch { /* Keep the hint hidden when the session cannot be updated. */ }
+  }
 
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
@@ -41,7 +99,7 @@ export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
           </p>
           <h1 className="text-xl font-bold">{theCase.title}</h1>
         </div>
-        <div className="flex gap-6 text-sm"><span>⏱️ <b>30:00</b></span><span>🎯 <b>100</b> очков</span></div>
+        <div className="flex gap-6 text-sm"><span>⏱️ <b>{timerLabel}</b></span><span>🎯 <b>{score}</b> очков</span></div>
       </header>
 
       <div className="flex min-h-[calc(100vh-73px)]">
@@ -62,15 +120,17 @@ export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
                   <div className="grid gap-3 md:grid-cols-2">{suspects.map((suspect) => (
                     <article key={suspect.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
                       <h3 className="font-semibold">{suspect.name}</h3><p className="mt-1 text-sm text-red-300">{suspect.role}</p><p className="mt-3 text-sm text-gray-400">{suspect.description}</p>
+                      <button disabled={!startedAt || !remainingSeconds || solved || submittingSuspectId !== null} onClick={() => void accuse(suspect.id)} className="mt-4 rounded-lg border border-red-500/30 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40">{submittingSuspectId === suspect.id ? "Проверяем…" : "Обвинить"}</button>
                     </article>
                   ))}</div>
                   <div className="space-y-3">{bySection("people").map((item) => (
-                    <Item key={item.id} item={item} studied={foundEvidenceIds.includes(item.id)} onStudy={() => item.danger && markEvidenceFound(item.id)} />
+                    <Item key={item.id} item={item} studied={foundEvidenceIds.includes(item.id)} onStudy={() => item.danger && markEvidenceFound(item.id)} onUseHint={() => void useHint(item.id)} hintUsed={usedHintIds.includes(item.id)} />
                   ))}</div>
                 </div>
               ) : <div className="space-y-3">{bySection(section).map((item) => (
-                <Item key={item.id} item={item} studied={foundEvidenceIds.includes(item.id)} onStudy={() => item.danger && markEvidenceFound(item.id)} />
+                <Item key={item.id} item={item} studied={foundEvidenceIds.includes(item.id)} onStudy={() => item.danger && markEvidenceFound(item.id)} onUseHint={() => void useHint(item.id)} hintUsed={usedHintIds.includes(item.id)} />
               ))}</div>}
+              {section === "people" && verdictMessage && <p role="status" className="mt-4 rounded-xl border border-white/10 p-4 text-sm text-gray-300">{verdictMessage}</p>}
             </Page>
           )}
           {section === "evidence" && <EvidenceBoard items={foundEvidence} />}
@@ -96,18 +156,18 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
   return <div className="max-w-4xl"><h2 className="mb-6 text-3xl font-bold">{title}</h2>{children}</div>;
 }
 
-function Item({ item, studied, onStudy }: { item: Evidence; studied: boolean; onStudy: () => void }) {
+function Item({ item, studied, onStudy, onUseHint, hintUsed = false }: { item: Evidence; studied: boolean; onStudy: () => void; onUseHint?: () => void; hintUsed?: boolean }) {
   const [open, setOpen] = useState(false);
   return <article className={`rounded-xl border transition ${item.danger ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"}`}>
     <button onClick={() => { setOpen(true); onStudy(); }} className="w-full p-4 text-left">
       <span className="flex items-center justify-between gap-3"><span className="font-semibold">{item.title}</span>{studied && <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-1 text-xs text-emerald-300">Изучено</span>}</span>
       <span className="mt-1 block text-sm text-gray-500">{item.subtitle}</span>
     </button>
-    {open && <ArtifactPanel item={item} onClose={() => setOpen(false)} />}
+    {open && <ArtifactPanel item={item} onClose={() => setOpen(false)} onUseHint={onUseHint} hintUsed={hintUsed} />}
   </article>;
 }
 
-function ArtifactPanel({ item, onClose }: { item: Evidence; onClose: () => void }) {
+function ArtifactPanel({ item, onClose, onUseHint, hintUsed }: { item: Evidence; onClose: () => void; onUseHint?: () => void; hintUsed: boolean }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKeyDown);
@@ -120,7 +180,7 @@ function ArtifactPanel({ item, onClose }: { item: Evidence; onClose: () => void 
         <div><p className="mb-1 text-xs uppercase tracking-[0.2em] text-red-400">{item.type}</p><h2 id={`artifact-${item.id}`} className="text-xl font-semibold">{item.title}</h2><p className="mt-1 text-sm text-gray-500">{item.subtitle}</p></div>
         <button onClick={onClose} aria-label="Закрыть" className="rounded-lg border border-white/10 px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white">✕</button>
       </header>
-      <div className="space-y-5 p-5"><EvidenceContentView item={item} />{item.hint && <p className="rounded-lg border-l-2 border-red-500/50 bg-white/[0.02] py-2 pl-3 text-sm italic text-gray-400"><span className="text-red-300">Подсказка:</span> {item.hint}</p>}</div>
+      <div className="space-y-5 p-5"><EvidenceContentView item={item} />{item.hint && <div>{hintUsed ? <p className="rounded-lg border-l-2 border-red-500/50 bg-white/[0.02] py-2 pl-3 text-sm italic text-gray-400"><span className="text-red-300">Подсказка:</span> {item.hint}</p> : <button onClick={onUseHint} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-400 hover:bg-white/5 hover:text-white">Показать подсказку (−10 очков)</button>}</div>}</div>
     </section>
   </div>;
 }

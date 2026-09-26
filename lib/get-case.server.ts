@@ -1,7 +1,7 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
 import { createServerSupabaseClient } from "./supabase.server";
 import { getFallbackCase } from "./fallback-case.server";
+import { stableUuid } from "./stable-id.server";
 import type { CaseBundle, Evidence, Suspect } from "./case-types";
 
 // Loads the one active case for the game. Only ever selects the columns the
@@ -63,10 +63,10 @@ async function loadFromSupabase(): Promise<CaseBundle | null> {
 // shape the UI gets from Supabase. culprit_index is intentionally dropped here.
 function loadFromFallback(): CaseBundle {
   const generated = getFallbackCase();
-  const caseId = randomUUID();
+  const caseId = stableUuid(`case:${generated.title}`);
 
-  const suspects: Suspect[] = generated.suspects.map((s) => ({
-    id: randomUUID(),
+  const suspects: Suspect[] = generated.suspects.map((s, index) => ({
+    id: stableUuid(`${caseId}:suspect:${index}`),
     case_id: caseId,
     name: s.name,
     role: s.role,
@@ -74,7 +74,7 @@ function loadFromFallback(): CaseBundle {
   }));
 
   const evidence: Evidence[] = generated.evidence.map((e, index) => ({
-    id: randomUUID(),
+    id: stableUuid(`${caseId}:evidence:${index}`),
     case_id: caseId,
     type: e.type,
     section: e.section,
