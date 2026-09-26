@@ -6,6 +6,14 @@ import { useGameStore } from "@/lib/game-store";
 
 type Section = "incident" | EvidenceSection | "evidence";
 
+function isCaseBundle(value: unknown): value is CaseBundle {
+  if (typeof value !== "object" || value === null) return false;
+  const bundle = value as Partial<CaseBundle>;
+  return (bundle.source === "fallback" || bundle.source === "supabase")
+    && typeof bundle.case === "object" && bundle.case !== null
+    && Array.isArray(bundle.suspects) && Array.isArray(bundle.evidence);
+}
+
 const SECTION_LABELS: Record<EvidenceSection, string> = {
   mail: "📧 Почта",
   logs: "🔒 Логи",
@@ -21,12 +29,15 @@ const SECTION_TITLES: Record<EvidenceSection, string> = {
 
 export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
   const [section, setSection] = useState<Section>("incident");
+  const [gameBundle, setGameBundle] = useState(caseBundle);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [now, setNow] = useState(0);
   const [verdictMessage, setVerdictMessage] = useState("");
   const [submittingSuspectId, setSubmittingSuspectId] = useState<string | null>(null);
   const [solved, setSolved] = useState(false);
-  const { case: theCase, suspects, evidence, source } = caseBundle;
+  const [generating, setGenerating] = useState(false);
+  const [generationMessage, setGenerationMessage] = useState("");
+  const { case: theCase, suspects, evidence, source } = gameBundle;
   const foundEvidenceIds = useGameStore((state) => state.foundEvidenceIds);
   const hintsUsed = useGameStore((state) => state.hintsUsed);
   const usedHintIds = useGameStore((state) => state.usedHintIds);
@@ -89,9 +100,26 @@ export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
     } catch { /* Keep the hint hidden when the session cannot be updated. */ }
   }
 
+  async function generateNewCase() {
+    setGenerating(true);
+    setGenerationMessage("");
+    try {
+      const response = await fetch("/api/case/generate", { method: "POST" });
+      if (!response.ok) throw new Error("generation_failed");
+      const nextBundle: unknown = await response.json();
+      if (!isCaseBundle(nextBundle)) throw new Error("invalid_case");
+      setGameBundle(nextBundle);
+      setSection("incident");
+    } catch {
+      setGenerationMessage("Не удалось получить новое дело. Попробуйте позже.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+      <header className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
         <div>
           <p className="flex items-center gap-2 text-xs tracking-[0.3em] text-red-500">
             DECISIONLAB
@@ -99,8 +127,12 @@ export default function CaseClient({ caseBundle }: { caseBundle: CaseBundle }) {
           </p>
           <h1 className="text-xl font-bold">{theCase.title}</h1>
         </div>
-        <div className="flex gap-6 text-sm"><span>⏱️ <b>{timerLabel}</b></span><span>🎯 <b>{score}</b> очков</span></div>
+        <div className="flex items-center gap-4 text-sm">
+          <button onClick={() => void generateNewCase()} disabled={generating} className="rounded-xl border border-red-500/30 px-3 py-2 text-red-300 transition hover:bg-red-500/10 disabled:opacity-50">{generating ? "Готовим дело…" : "Новое дело"}</button>
+          <span>⏱️ <b>{timerLabel}</b></span><span>🎯 <b>{score}</b> очков</span>
+        </div>
       </header>
+      {generationMessage && <p role="status" className="border-b border-white/10 px-6 py-2 text-sm text-gray-400">{generationMessage}</p>}
 
       <div className="flex min-h-[calc(100vh-73px)]">
         <aside className="w-64 border-r border-white/10 p-4">

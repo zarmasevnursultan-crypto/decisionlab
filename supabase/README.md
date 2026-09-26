@@ -1,8 +1,8 @@
 # Supabase: запуск шага 1
 
-1. Создайте проект Supabase и выполните `supabase/migrations/202609150001_initial_case_schema.sql` в SQL Editor (роль postgres), либо примените через Supabase CLI к связанному проекту.
-2. Скопируйте `.env.example` в `.env.local`. Заполните `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable/anon key) и `SUPABASE_SERVICE_ROLE_KEY`. Service role key используется только сервером, никогда не добавляйте ему префикс NEXT_PUBLIC.
-3. Для шага 5 отдельно задайте `ANTHROPIC_API_KEY` и `ANTHROPIC_MODEL`. Пустые значения намеренны: фиктивных ключей нет.
+1. Создайте проект Supabase и примените обе миграции из `supabase/migrations` по порядку через SQL Editor (роль postgres) либо через Supabase CLI к связанному проекту. Вторая миграция добавляет `create_case_from_payload(jsonb)`, доступную только `service_role`.
+2. Заполните `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` и `SUPABASE_SERVICE_ROLE_KEY`. Service role key используется только сервером, никогда не добавляйте ему префикс NEXT_PUBLIC.
+3. Для шага 5 создайте собственный ключ OpenRouter и задайте `OPENROUTER_API_KEY`. Модель по умолчанию — бесплатная `google/gemma-4-26b-a4b-it:free`; при желании задайте `OPENROUTER_MODEL`. Не используйте чужие ключи и не добавляйте свой ключ в Git.
 4. Проверьте ограничения доступа скриптом `supabase/tests/access-control.sql` в SQL Editor.
 5. Локально выполните `node scripts/validate-fallback.mjs` и `npm run build`.
 

@@ -61,7 +61,7 @@ async function loadFromSupabase(): Promise<CaseBundle | null> {
 
 // Turns the fallback JSON (which includes culprit_index) into the same safe
 // shape the UI gets from Supabase. culprit_index is intentionally dropped here.
-function loadFromFallback(): CaseBundle {
+export function loadFallbackCaseBundle(): CaseBundle {
   const generated = getFallbackCase();
   const caseId = stableUuid(`case:${generated.title}`);
 
@@ -102,5 +102,5 @@ function loadFromFallback(): CaseBundle {
 export async function loadCase(): Promise<CaseBundle> {
   const fromDb = await loadFromSupabase();
   if (fromDb) return fromDb;
-  return loadFromFallback();
+  return loadFallbackCaseBundle();
 }
