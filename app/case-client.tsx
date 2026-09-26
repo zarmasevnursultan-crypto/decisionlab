@@ -99,12 +99,30 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
 function Item({ item, studied, onStudy }: { item: Evidence; studied: boolean; onStudy: () => void }) {
   const [open, setOpen] = useState(false);
   return <article className={`rounded-xl border transition ${item.danger ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"}`}>
-    <button onClick={() => { setOpen(!open); onStudy(); }} className="w-full p-4 text-left">
+    <button onClick={() => { setOpen(true); onStudy(); }} className="w-full p-4 text-left">
       <span className="flex items-center justify-between gap-3"><span className="font-semibold">{item.title}</span>{studied && <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-1 text-xs text-emerald-300">Изучено</span>}</span>
       <span className="mt-1 block text-sm text-gray-500">{item.subtitle}</span>
     </button>
-    {open && <div className="space-y-3 border-t border-white/10 px-4 py-4"><EvidenceContentView item={item} />{item.hint && <p className="border-l-2 border-white/20 pl-3 text-xs italic text-gray-500">Подсказка: {item.hint}</p>}</div>}
+    {open && <ArtifactPanel item={item} onClose={() => setOpen(false)} />}
   </article>;
+}
+
+function ArtifactPanel({ item, onClose }: { item: Evidence; onClose: () => void }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section role="dialog" aria-modal="true" aria-labelledby={`artifact-${item.id}`} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-white/10 bg-[#07090d] shadow-2xl">
+      <header className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+        <div><p className="mb-1 text-xs uppercase tracking-[0.2em] text-red-400">{item.type}</p><h2 id={`artifact-${item.id}`} className="text-xl font-semibold">{item.title}</h2><p className="mt-1 text-sm text-gray-500">{item.subtitle}</p></div>
+        <button onClick={onClose} aria-label="Закрыть" className="rounded-lg border border-white/10 px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white">✕</button>
+      </header>
+      <div className="space-y-5 p-5"><EvidenceContentView item={item} />{item.hint && <p className="rounded-lg border-l-2 border-red-500/50 bg-white/[0.02] py-2 pl-3 text-sm italic text-gray-400"><span className="text-red-300">Подсказка:</span> {item.hint}</p>}</div>
+    </section>
+  </div>;
 }
 
 function EvidenceContentView({ item }: { item: Evidence }) {
@@ -117,7 +135,7 @@ function EvidenceContentView({ item }: { item: Evidence }) {
 }
 
 function EvidenceBoard({ items }: { items: Evidence[] }) {
-  return <Page title="Доска улик">{items.length === 0 ? <div className="rounded-xl border border-dashed border-white/20 p-12 text-center text-gray-500">Улик пока нет. Изучите материалы дела, чтобы добавить важные улики.</div> : <div className="space-y-3">{items.map((item) => <article key={item.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4"><p className="font-semibold">{item.title}</p><p className="mt-1 text-sm text-gray-500">{item.subtitle}</p><div className="mt-4"><EvidenceContentView item={item} /></div></article>)}</div>}</Page>;
+  return <Page title="Доска улик">{items.length === 0 ? <div className="rounded-xl border border-dashed border-white/20 p-12 text-center text-gray-500">Улик пока нет. Изучите материалы дела, чтобы добавить важные улики.</div> : <div className="space-y-3">{items.map((item) => <Item key={item.id} item={item} studied={true} onStudy={() => {}} />)}</div>}</Page>;
 }
 
 function InfoCard({ title, value }: { title: string; value: string }) {
