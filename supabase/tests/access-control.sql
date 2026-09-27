@@ -25,6 +25,14 @@ begin
   exception when insufficient_privilege then null;
   end;
   begin
+    perform hint from public.evidence;
+    raise exception 'SECURITY FAILURE: paid hint readable';
+  exception when insufficient_privilege then null;
+  end;
+  if has_function_privilege('anon', 'public.update_investigation_session(uuid,integer,jsonb,timestamptz,jsonb)', 'EXECUTE') then
+    raise exception 'SECURITY FAILURE: anon can mutate sessions';
+  end if;
+  begin
     perform * from public.attempts;
     raise exception 'SECURITY FAILURE: attempts readable';
   exception when insufficient_privilege then null;
@@ -40,6 +48,9 @@ set local role authenticated;
 do $$
 begin
   perform id, title from public.public_cases;
+  if has_function_privilege('authenticated', 'public.update_investigation_session(uuid,integer,jsonb,timestamptz,jsonb)', 'EXECUTE') then
+    raise exception 'SECURITY FAILURE: authenticated can mutate sessions';
+  end if;
   begin
     perform culprit_id from public.cases;
     raise exception 'SECURITY FAILURE: authenticated can read culprit';

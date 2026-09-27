@@ -4,6 +4,7 @@ type CaseRow = PublicCase & { culprit_id: string | null };
 type SessionRow = {
   id: string; case_id: string; token_hash: string; started_at: string;
   expires_at: string; hints_used: number; completed_at: string | null;
+  player_hash: string | null; state: Json; revision: number;
 };
 type AttemptRow = {
   id: string; session_id: string; case_id: string; suspect_id: string;
@@ -28,6 +29,7 @@ export type Database = {
     Views: { public_cases: { Row: PublicCase; Relationships: [] } };
     Functions: {
       create_case_from_payload: { Args: { p_payload: Json }; Returns: string };
+      update_investigation_session: { Args: { p_id: string; p_revision: number; p_state: Json; p_completed_at: string | null; p_attempt: Json }; Returns: boolean };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

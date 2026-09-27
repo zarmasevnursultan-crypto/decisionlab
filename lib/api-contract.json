@@ -1,0 +1,14 @@
+[
+  { "method": "GET", "path": "/api/health", "description": "Состояние приложения, базы и настройки ИИ", "schema": "Health" },
+  { "method": "GET", "path": "/api/case", "description": "Безопасные материалы текущего дела; необязательный query caseId", "schema": "CaseBundle" },
+  { "method": "GET", "path": "/api/case/session", "description": "Сессия, время, подсказки, попытки, счёт и результат", "schema": "Session" },
+  { "method": "POST", "path": "/api/case/session", "description": "Начать или восстановить прохождение", "body": { "caseId": "00000000-0000-4000-8000-000000000001" }, "required": ["caseId"], "schema": "Session" },
+  { "method": "POST", "path": "/api/case/evidence", "description": "Отметить материал изученным (идемпотентно)", "body": { "evidenceId": "00000000-0000-4000-8000-000000000002" }, "required": ["evidenceId"], "schema": "Session" },
+  { "method": "POST", "path": "/api/case/hint", "description": "Открыть подсказку один раз за 10 очков", "body": { "evidenceId": "00000000-0000-4000-8000-000000000002" }, "required": ["evidenceId"], "schema": "Hint" },
+  { "method": "POST", "path": "/api/case/verdict", "description": "Зарегистрировать обвинение; ошибка стоит 5 очков", "body": { "suspect_id": "00000000-0000-4000-8000-000000000003" }, "required": ["suspect_id"], "schema": "Verdict" },
+  { "method": "GET", "path": "/api/case/progress", "description": "Прогресс по всем материалам и разделам", "schema": "Progress" },
+  { "method": "POST", "path": "/api/case/restart", "description": "Повторное прохождение текущего или указанного дела", "body": {}, "schema": "Restart" },
+  { "method": "POST", "path": "/api/case/generate", "description": "Создать дело: auto, ai, local или fallback", "body": { "mode": "auto", "previousTitle": "" }, "schema": "Generation" },
+  { "method": "GET", "path": "/api/history", "description": "Последние 100 раскрытых дел анонимного посетителя", "schema": "History" },
+  { "method": "GET", "path": "/api/statistics", "description": "Статистика по последним 100 завершённым прохождениям", "schema": "Statistics" }
+]

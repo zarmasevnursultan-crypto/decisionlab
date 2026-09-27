@@ -1,0 +1,3336 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DecisionLab API",
+    "version": "1.0.0",
+    "description": "Анонимные прохождения через HttpOnly cookie. 100 − 10×подсказки − floor(секунды/30) − 5×ошибки, минимум 0. История ограничена 100 последними завершёнными прохождениями. ИИ проверяется эвристически, логическая корректность не гарантируется."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Состояние приложения, базы и настройки ИИ",
+        "operationId": "get_api_health",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Health"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/case": {
+      "get": {
+        "summary": "Безопасные материалы текущего дела; необязательный query caseId",
+        "operationId": "get_api_case",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CaseBundle"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Если задан, cookie не обязательны; возвращаются только публичные материалы"
+          }
+        ]
+      }
+    },
+    "/api/case/session": {
+      "get": {
+        "summary": "Сессия, время, подсказки, попытки, счёт и результат",
+        "operationId": "get_api_case_session",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Начать или восстановить прохождение",
+        "operationId": "post_api_case_session",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caseId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "caseId"
+                ]
+              },
+              "example": {
+                "caseId": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/case/evidence": {
+      "post": {
+        "summary": "Отметить материал изученным (идемпотентно)",
+        "operationId": "post_api_case_evidence",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "evidenceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "evidenceId"
+                ]
+              },
+              "example": {
+                "evidenceId": "00000000-0000-4000-8000-000000000002"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/case/hint": {
+      "post": {
+        "summary": "Открыть подсказку один раз за 10 очков",
+        "operationId": "post_api_case_hint",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Hint"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "evidenceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "evidenceId"
+                ]
+              },
+              "example": {
+                "evidenceId": "00000000-0000-4000-8000-000000000002"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/case/verdict": {
+      "post": {
+        "summary": "Зарегистрировать обвинение; ошибка стоит 5 очков",
+        "operationId": "post_api_case_verdict",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Verdict"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "suspect_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "suspect_id"
+                ]
+              },
+              "example": {
+                "suspect_id": "00000000-0000-4000-8000-000000000003"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/case/progress": {
+      "get": {
+        "summary": "Прогресс по всем материалам и разделам",
+        "operationId": "get_api_case_progress",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Progress"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ]
+      }
+    },
+    "/api/case/restart": {
+      "post": {
+        "summary": "Повторное прохождение текущего или указанного дела",
+        "operationId": "post_api_case_restart",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Restart"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Restart"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": [],
+            "playerCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caseId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": []
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/case/generate": {
+      "post": {
+        "summary": "Создать дело: auto, ai, local или fallback",
+        "operationId": "post_api_case_generate",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Generation"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Generation"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "auto",
+                      "ai",
+                      "local",
+                      "fallback"
+                    ]
+                  },
+                  "previousTitle": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": []
+              },
+              "example": {
+                "mode": "auto",
+                "previousTitle": ""
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/history": {
+      "get": {
+        "summary": "Последние 100 раскрытых дел анонимного посетителя",
+        "operationId": "get_api_history",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/History"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/statistics": {
+      "get": {
+        "summary": "Статистика по последним 100 завершённым прохождениям",
+        "operationId": "get_api_statistics",
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Statistics"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "Некорректный JSON",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "ORIGIN_MISMATCH",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CASE_NOT_FOUND / EVIDENCE_NOT_FOUND / SUSPECT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "CASE_NOT_FOUND",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SESSION_EXPIRED / SESSION_COMPLETED / SUSPECT_ALREADY_CHECKED / SESSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "SESSION_EXPIRED",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "REQUEST_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE / AI_NOT_CONFIGURED / AI_UNAVAILABLE / AI_RATE_LIMITED / AI_ACCESS_DENIED / AI_CREDITS_REQUIRED / AI_MODEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "DATABASE_UNAVAILABLE",
+                    "message": "Понятное сообщение пользователю"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "const": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "case_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "enum": [
+              "log",
+              "metadata",
+              "network",
+              "testimony"
+            ]
+          },
+          "section": {
+            "enum": [
+              "mail",
+              "logs",
+              "files",
+              "people"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "danger": {
+            "type": "boolean"
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string"
+                        },
+                        "anomaly": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "anomaly"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "entries"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "connections": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "anomaly": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "label",
+                        "anomaly"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "connections"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "speaker": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "speaker",
+                  "quote"
+                ]
+              }
+            ]
+          },
+          "hint": {
+            "const": "",
+            "description": "Текст выдаётся только через POST hint"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "case_id",
+          "type",
+          "section",
+          "title",
+          "subtitle",
+          "danger",
+          "content",
+          "hint",
+          "position"
+        ]
+      },
+      "CaseBundle": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "enum": [
+              "local",
+              "supabase",
+              "fallback"
+            ]
+          },
+          "case": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "briefing": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "briefing",
+              "created_at"
+            ]
+          },
+          "suspects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "case_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "case_id",
+                "name",
+                "role",
+                "description"
+              ]
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "case",
+          "suspects",
+          "evidence"
+        ]
+      },
+      "Progress": {
+        "type": "object",
+        "properties": {
+          "studiedEvidence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalEvidence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "hintsUsed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "mail": {
+                "type": "object",
+                "properties": {
+                  "studied": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "studied",
+                  "total"
+                ]
+              },
+              "logs": {
+                "type": "object",
+                "properties": {
+                  "studied": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "studied",
+                  "total"
+                ]
+              },
+              "files": {
+                "type": "object",
+                "properties": {
+                  "studied": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "studied",
+                  "total"
+                ]
+              },
+              "people": {
+                "type": "object",
+                "properties": {
+                  "studied": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "studied",
+                  "total"
+                ]
+              }
+            },
+            "required": [
+              "mail",
+              "logs",
+              "files",
+              "people"
+            ]
+          }
+        },
+        "required": [
+          "studiedEvidence",
+          "totalEvidence",
+          "progress",
+          "hintsUsed",
+          "attempts",
+          "sections"
+        ]
+      },
+      "Resolution": {
+        "type": "object",
+        "properties": {
+          "suspectName": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "explanation": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "detail",
+                "explanation"
+              ]
+            }
+          }
+        },
+        "required": [
+          "suspectName",
+          "findings"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseTitle": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "completed",
+              "expired",
+              "abandoned"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "serverTime": {
+            "type": "string"
+          },
+          "elapsedSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "remainingSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "studiedEvidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "usedHintIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "hints": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "attemptedSuspectIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "hintsUsed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "wrongAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "breakdown": {
+            "type": "object",
+            "properties": {
+              "base": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "hintsPenalty": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "timePenalty": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "mistakesPenalty": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "base",
+              "hintsPenalty",
+              "timePenalty",
+              "mistakesPenalty",
+              "total"
+            ]
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "efficiency": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/Resolution",
+            "description": "Только после успешного вердикта"
+          }
+        },
+        "required": [
+          "id",
+          "caseId",
+          "status",
+          "elapsedSeconds",
+          "remainingSeconds",
+          "score",
+          "breakdown",
+          "progress"
+        ]
+      },
+      "Hint": {
+        "type": "object",
+        "properties": {
+          "hint": {
+            "type": "string"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          }
+        },
+        "required": [
+          "hint",
+          "session"
+        ]
+      },
+      "Verdict": {
+        "type": "object",
+        "properties": {
+          "correct": {
+            "type": "boolean"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          }
+        },
+        "required": [
+          "correct",
+          "session"
+        ]
+      },
+      "Restart": {
+        "type": "object",
+        "properties": {
+          "bundle": {
+            "$ref": "#/components/schemas/CaseBundle"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          }
+        },
+        "required": [
+          "bundle",
+          "session"
+        ]
+      },
+      "Generation": {
+        "type": "object",
+        "properties": {
+          "bundle": {
+            "$ref": "#/components/schemas/CaseBundle"
+          },
+          "generation": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "enum": [
+                  "ai",
+                  "local",
+                  "fallback"
+                ]
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "notice": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "attempts",
+              "notice"
+            ]
+          }
+        },
+        "required": [
+          "bundle",
+          "generation"
+        ]
+      },
+      "History": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "caseId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string"
+            },
+            "completedAt": {
+              "type": "string"
+            },
+            "score": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "elapsedSeconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "hintsUsed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "attempts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "studiedEvidence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "totalEvidence": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "sessionId",
+            "caseId",
+            "title",
+            "completedAt",
+            "score",
+            "elapsedSeconds",
+            "hintsUsed",
+            "attempts",
+            "studiedEvidence",
+            "totalEvidence"
+          ]
+        }
+      },
+      "Statistics": {
+        "type": "object",
+        "properties": {
+          "completed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "averageScore": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bestScore": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "averageSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hintsUsed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sampleLimit": {
+            "const": 100
+          }
+        },
+        "required": [
+          "completed",
+          "averageScore",
+          "bestScore",
+          "averageSeconds",
+          "hintsUsed",
+          "attempts",
+          "sampleLimit"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "services": {
+            "type": "object",
+            "properties": {
+              "application": {
+                "const": "ok"
+              },
+              "database": {
+                "enum": [
+                  "ok",
+                  "unavailable",
+                  "not_configured"
+                ]
+              },
+              "ai": {
+                "enum": [
+                  "configured_not_checked",
+                  "not_configured"
+                ]
+              }
+            },
+            "required": [
+              "application",
+              "database",
+              "ai"
+            ]
+          },
+          "checkedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "services",
+          "checkedAt"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "decisionlab_session"
+      },
+      "playerCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "decisionlab_player"
+      }
+    }
+  }
+}

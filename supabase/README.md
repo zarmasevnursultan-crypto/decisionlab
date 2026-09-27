@@ -1,24 +1,29 @@
-# Supabase: запуск шага 1
+# База DecisionLab
 
-1. Создайте проект Supabase и примените обе миграции из `supabase/migrations` по порядку через SQL Editor (роль postgres) либо через Supabase CLI к связанному проекту. Вторая миграция добавляет `create_case_from_payload(jsonb)`, доступную только `service_role`.
-2. Заполните `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` и `SUPABASE_SERVICE_ROLE_KEY`. Service role key используется только сервером, никогда не добавляйте ему префикс NEXT_PUBLIC.
-3. Для шага 5 создайте собственный ключ OpenRouter и задайте `OPENROUTER_API_KEY`. Модель по умолчанию — бесплатная `google/gemma-4-26b-a4b-it:free`; при желании задайте `OPENROUTER_MODEL`. Не используйте чужие ключи и не добавляйте свой ключ в Git.
-4. Проверьте ограничения доступа скриптом `supabase/tests/access-control.sql` в SQL Editor.
-5. Локально выполните `node scripts/validate-fallback.mjs` и `npm run build`.
+Примените три миграции из `migrations/` в порядке имени. Первые две не изменены; третья `202609270001_investigation_progress.sql` необходима для нового API.
 
-## Принятая схема
+## Изменения третьей миграции
 
-- cases: id, title, briefing, culprit_id, created_at. Правильный подозреваемый обязательно принадлежит тому же делу.
-- suspects: id, case_id, name, role, description.
-- evidence: id, case_id, type, section, title, subtitle, danger, content (JSONB), hint, position. Тип артефакта и вкладка независимы: письмо может быть metadata, а файл — log.
-- sessions: id, case_id, token_hash, started_at, expires_at, hints_used, completed_at. Длительность — 30 минут. Только сервер управляет сессиями.
-- attempts: id, session_id, case_id, suspect_id, correct, score, created_at. Один вердикт на подозреваемого в рамках сессии; сервер должен завершать сессию при успехе. Таблица закрыта, поскольку успешная попытка раскрывает ответ.
-- public_cases: id, title, briefing, created_at; security_invoker=true.
+- `sessions.player_hash` связывает прохождения с анонимной cookie владельца (хранится только SHA-256).
+- `sessions.state` хранит изученные материалы, ID открытых подсказок, попытки и время остановки.
+- `sessions.revision` защищает от потерянных обновлений при параллельных запросах.
+- `sessions_player_history_idx` ускоряет выборку завершённых прохождений посетителя.
+- `update_investigation_session` блокирует строку, проверяет версию и одной транзакцией обновляет состояние и записывает попытку.
+- `anon`/`authenticated` больше не могут читать `evidence.hint` напрямую.
 
-Для anon/authenticated разрешено чтение только безопасных колонок cases и публичных материалов. RLS включён на всех пяти таблицах. Запись и доступ к сессиям/попыткам доступны service_role. Нет публичных RPC, позволяющих получить правильный ответ.
+RLS остаётся включённым. Сессии, попытки, правильный ответ и оба RPC доступны только серверной роли. Публичный SELECT у `cases` ограничен колонками `id,title,briefing,created_at`. У `evidence` доступны публичные материалы без `hint`.
 
-Fallback находится в lib, не в public. Подключать его следует через `lib/fallback-case.server.ts`, защищённый `server-only`. `culprit_index` нужен только для серверной записи и не должен сериализоваться в API-ответ. Импорт JSON напрямую в клиентский код запрещён.
+Применять SQL от роли postgres через SQL Editor. Не выдавать браузеру service-role key. После миграции настройте `NEXT_PUBLIC_SUPABASE_URL` и `SUPABASE_SERVICE_ROLE_KEY` в `.env.local`, перезапустите приложение и проверьте `/api/health`. Значение `database: ok` означает, что сервер может прочитать новую колонку `revision`.
 
-Миграция создаёт структуру, но не загружает fallback: транзакционная запись дела относится к шагу 5. На шаге 1 существующий UI остаётся статичным.
+## Проверки
 
-Документация по ограничениям Supabase: https://supabase.com/docs/guides/database/postgres/row-level-security
+В SQL Editor выполните:
+
+1. `tests/access-control.sql` — существующие проверки доступа дополнены запретом чтения подсказок и вызова нового RPC.
+2. `tests/session-progress.sql` — обновление состояния, отказ устаревшей версии, сохранение счётчика и атомарная запись вердикта.
+
+Оба файла создают тестовые данные в транзакции и завершаются `ROLLBACK`. Не запускайте их без всех миграций. Миграции и тесты прочитаны и проверены на уровне кода, но требуют реального запуска на PostgreSQL перед deployment; в текущей среде нет настроенной базы и PostgreSQL CLI.
+
+В режиме Supabase новое дело, созданное через кнопку, записывается RPC. При недоступности базы новое содержимое сохраняется в локальном JSON. Начальное дело также локальное. Уже начатая сессия Supabase при ошибке базы возвращает 503, не теряет и не подменяет состояние.
+
+Подробности запуска, локального режима и ограничений размещения: [основной README](../README.md).

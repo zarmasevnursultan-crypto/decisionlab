@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --conditions=react-server scripts/test-cases.cjs",
+    "typecheck": "tsc --noEmit",
+    "test:api": "node scripts/smoke-cases.mjs",
+    "docs:api": "node scripts/generate-openapi.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

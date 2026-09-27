@@ -7,6 +7,8 @@
 
 # production
 /build
+/.decisionlab/
+/.test-data/
 
 # env files (never commit real secrets)
 .env

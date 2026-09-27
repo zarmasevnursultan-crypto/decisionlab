@@ -1,24 +1,19 @@
 import { create } from "zustand";
+import type { SessionSnapshot } from "./case-types";
 
 type GameState = {
-  foundEvidenceIds: string[];
-  hintsUsed: number;
-  usedHintIds: string[];
-  markEvidenceFound: (evidenceId: string) => void;
-  recordHint: (evidenceId: string, total: number) => void;
-  clearEvidence: () => void;
+  session: SessionSnapshot | null;
+  receivedAt: number;
+  syncSession: (session: SessionSnapshot) => void;
 };
 
+// The server is authoritative. Zustand only mirrors acknowledged snapshots.
 export const useGameStore = create<GameState>((set) => ({
-  foundEvidenceIds: [],
-  hintsUsed: 0,
-  usedHintIds: [],
-  markEvidenceFound: (evidenceId) =>
-    set((state) => state.foundEvidenceIds.includes(evidenceId)
-      ? state
-      : { foundEvidenceIds: [...state.foundEvidenceIds, evidenceId] }),
-  recordHint: (evidenceId, total) => set((state) => state.usedHintIds.includes(evidenceId)
-    ? state
-    : { usedHintIds: [...state.usedHintIds, evidenceId], hintsUsed: total }),
-  clearEvidence: () => set({ foundEvidenceIds: [], hintsUsed: 0, usedHintIds: [] }),
+  session: null,
+  receivedAt: 0,
+  syncSession: (session) => set((state) => {
+    const current = state.session;
+    if (current && (session.id === current.id ? session.revision < current.revision || (session.revision === current.revision && session.serverTime < current.serverTime) : session.startedAt < current.startedAt)) return state;
+    return { session, receivedAt: Date.now() };
+  }),
 }));
