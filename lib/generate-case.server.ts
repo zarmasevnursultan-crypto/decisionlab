@@ -118,6 +118,9 @@ export async function saveCase(payload: GeneratedCase): Promise<CaseBundle | nul
 }
 
 export async function generateCase(previousTitle: string, mode: "auto" | "ai" | "local" | "fallback" = "auto"): Promise<GenerationResult> {
+  if (process.env.VERCEL && !(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+    throw new ApiError("DATABASE_REQUIRED", "Для размещения на Vercel подключите Supabase и примените миграции базы.", 503);
+  }
   let payload = mode === "fallback" ? getFallbackCase() : generateLocalCase(previousTitle);
   let usedMode: GenerationResult["generation"]["mode"] = mode === "fallback" ? "fallback" : "local";
   let attempts = 0;
@@ -145,7 +148,11 @@ export async function generateCase(previousTitle: string, mode: "auto" | "ai" | 
   let bundle: CaseBundle | null = null;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try { bundle = await saveCase(payload); }
-    catch (error) { console.error("[case-save]", error); notice += " База недоступна: дело сохранено локально."; }
+    catch (error) {
+      console.error("[case-save]", error);
+      if (process.env.VERCEL) throw new ApiError("DATABASE_UNAVAILABLE", "База недоступна или не обновлена. Примените миграции и повторите запрос.", 503);
+      notice += " База недоступна: дело сохранено локально.";
+    }
   }
   return { bundle: bundle ?? registerLocalCase(payload), generation: { mode: usedMode, attempts, notice } };
 }

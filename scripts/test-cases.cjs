@@ -18,7 +18,42 @@ const { changeLocal, readLocal } = require("../lib/local-storage.server.ts");
 const { validateGeneratedCase, generateCase } = require("../lib/generate-case.server.ts");
 const { getFallbackCase } = require("../lib/fallback-case.server.ts");
 const { evidenceLinks } = require("../lib/evidence-links.ts");
+const { loadCase } = require("../lib/get-case.server.ts");
 after(() => { const file = path.join(directory, "data.json"); if (fs.existsSync(file)) fs.unlinkSync(file); fs.rmdirSync(directory); });
+
+test("Vercel first visit uses Supabase and never falls back to filesystem writes", async () => {
+  const originalFetch = global.fetch;
+  const originalVercel = process.env.VERCEL;
+  const before = fs.existsSync(path.join(directory, "data.json")) ? fs.readFileSync(path.join(directory, "data.json"), "utf8") : null;
+  process.env.VERCEL = "1";
+  try {
+    await assert.rejects(loadCase(), { code: "DATABASE_REQUIRED" });
+    assert.throws(() => registerLocalCase(generateLocalCase()), { code: "DATABASE_REQUIRED" });
+    assert.deepEqual(readLocal(), { cases: {}, sessions: {} });
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-only-placeholder";
+    const calls = [];
+    global.fetch = async (input) => {
+      const url = String(input); calls.push(url);
+      if (url.includes("/rpc/")) return Response.json("test-case-id");
+      if (url.includes("/cases?")) return Response.json({ id: "test-case-id", title: "Stored case", briefing: "Briefing", created_at: new Date().toISOString() });
+      return Response.json([]);
+    };
+    const bundle = await loadCase();
+    assert.equal(bundle.source, "supabase");
+    assert.equal(bundle.case.id, "test-case-id");
+    assert(calls.some((url) => url.includes("/rpc/create_case_from_payload")));
+    global.fetch = async () => Response.json({ message: "database unavailable" }, { status: 400 });
+    await assert.rejects(loadCase(), { code: "DATABASE_UNAVAILABLE" });
+    const after = fs.existsSync(path.join(directory, "data.json")) ? fs.readFileSync(path.join(directory, "data.json"), "utf8") : null;
+    assert.equal(after, before);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalVercel === undefined) delete process.env.VERCEL; else process.env.VERCEL = originalVercel;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+});
 
 test("100 cases have distinct IDs, varied adjacent themes and no public answers or hint text", () => {
   let previousTitle = "";

@@ -2,6 +2,7 @@ import "server-only";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CaseBundle } from "./case-types";
+import { ApiError } from "./api-error";
 
 export type PrivateCase = { bundle: CaseBundle; culpritId: string };
 export type SessionState = { caseTitle: string; totalEvidence: number; studied: string[]; hints: string[]; attempts: { suspectId: string; correct: boolean; score: number }[]; abandonedAt: string | null };
@@ -13,11 +14,13 @@ type LocalDatabase = { cases: Record<string, PrivateCase>; sessions: Record<stri
 // Single Node process, durable volume. All read/modify/write operations are synchronous and atomic.
 const directory = () => process.env.DECISIONLAB_DATA_DIR || join(process.cwd(), ".decisionlab");
 export function readLocal(): LocalDatabase {
+  if (process.env.VERCEL) return { cases: {}, sessions: {} };
   const path = join(directory(), "data.json");
   if (!existsSync(path)) return { cases: {}, sessions: {} };
   return JSON.parse(readFileSync(path, "utf8")) as LocalDatabase;
 }
 export function changeLocal<T>(update: (data: LocalDatabase) => T): T {
+  if (process.env.VERCEL) throw new ApiError("DATABASE_REQUIRED", "Для размещения на Vercel подключите Supabase и примените миграции базы.", 503);
   const data = readLocal();
   const result = update(data);
   mkdirSync(directory(), { recursive: true });
