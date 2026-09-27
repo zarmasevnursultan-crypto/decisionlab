@@ -1,0 +1,81 @@
+{
+  "title": "CASE #001: Ночной экспорт",
+  "briefing": "В 09:10 служба безопасности университета обнаружила утечку 214 файлов: персональных данных студентов и закрытых исследований. Экспорт выполнен ночью через действующий служебный сертификат. Изучите почту, журналы, метаданные и показания. Установите, кто инициировал экспорт: совпадение имени учётной записи само по себе не доказывает вину. Все времена указаны по местному времени UTC+5.",
+  "suspects": [
+    { "name": "Амина С.", "role": "Преподаватель", "description": "Владелец учётной записи amina.s. Рабочий ноутбук EDU-A17. Имеет доступ к студенческим ведомостям, но не к исследовательскому архиву." },
+    { "name": "Тимур К.", "role": "Системный администратор", "description": "Обслуживает хранилище и служебные сертификаты. Рабочая станция ADM-T04, закреплённый аппаратный ключ TK-04." },
+    { "name": "Данияр М.", "role": "Студент-ассистент", "description": "Дежурит в лаборатории. Рабочая станция LAB-D12. Может читать обезличенные учебные материалы." }
+  ],
+  "culprit_index": 1,
+  "evidence": [
+    {
+      "type": "metadata", "section": "mail", "title": "Срочная проверка аккаунта", "subtitle": "02:57 · письмо для Амины", "danger": true,
+      "content": { "entries": [
+        { "key": "From", "value": "IT Support <help@university-support.example>" },
+        { "key": "To", "value": "amina.s@university.example" },
+        { "key": "SPF", "value": "fail" },
+        { "key": "Delivered", "value": "2026-09-15T02:57:00+05:00" },
+        { "key": "Gateway action", "value": "quarantined before delivery; no user click" }
+      ] },
+      "hint": "Проверьте, было ли подозрительное письмо доставлено адресату."
+    },
+    {
+      "type": "log", "section": "logs", "title": "Аудит выдачи сертификатов", "subtitle": "03:06–03:14 · сервер аутентификации", "danger": true,
+      "content": { "lines": [
+        { "text": "03:06:11 actor=timur.k device=ADM-T04 hardware_key=TK-04 local_touch=verified action=issue_certificate serial=7F91 subject=amina.s scope=export_all", "anomaly": true },
+        { "text": "03:07:02 change_ticket=none certificate=7F91", "anomaly": true },
+        { "text": "03:14:08 subject=amina.s certificate=7F91 client=Unknown-Linux source=10.20.0.44 auth=success", "anomaly": true }
+      ] },
+      "hint": "Сопоставьте серийный номер сертификата с тем, кто его выпустил."
+    },
+    {
+      "type": "log", "section": "logs", "title": "Журнал облачного хранилища", "subtitle": "03:18–03:19 · 214 файлов", "danger": true,
+      "content": { "lines": [
+        { "text": "02:31:09 user=amina.s device=EDU-A17 action=read lecture.pdf result=allowed", "anomaly": false },
+        { "text": "03:18:12 certificate=7F91 job=EXP-214 action=export students_private.xlsx", "anomaly": true },
+        { "text": "03:19:04 certificate=7F91 job=EXP-214 action=export research_data.zip total_files=214", "anomaly": true }
+      ] },
+      "hint": "У ночного экспорта и нового входа один и тот же сертификат."
+    },
+    {
+      "type": "network", "section": "logs", "title": "Маршрут исходящего трафика", "subtitle": "03:14–03:21 · DHCP и шлюз", "danger": true,
+      "content": { "connections": [
+        { "from": "ADM-T04 / 10.20.0.44", "to": "storage.internal / 10.20.0.10", "label": "03:14–03:19 · mTLS certificate=7F91 · DHCP lease ADM-T04 valid 00:00–12:00", "anomaly": true },
+        { "from": "ADM-T04 / 10.20.0.44", "to": "198.51.100.24:443", "label": "03:20–03:21 · upload 486 MB · внешний узел", "anomaly": true },
+        { "from": "LAB-D12 / 10.20.0.72", "to": "courses.internal", "label": "03:15 · учебный портал · 120 KB", "anomaly": false }
+      ] },
+      "hint": "Какая рабочая станция одновременно читала архив и передавала данные наружу?"
+    },
+    {
+      "type": "metadata", "section": "files", "title": "Манифест research_data.zip", "subtitle": "03:19 · копия из журнала экспорта", "danger": true,
+      "content": { "entries": [
+        { "key": "SHA-256", "value": "ac35ef2019db47068d1ab75cd320fe6891ca437bf8092de6653a10dc4e28b709" },
+        { "key": "Created", "value": "2026-09-15T03:19:04+05:00" },
+        { "key": "Export job", "value": "EXP-214" },
+        { "key": "Signing certificate", "value": "7F91" },
+        { "key": "EXIF", "value": "Не применяется к ZIP-архиву" }
+      ] },
+      "hint": "Манифест связывает архив с экспортом EXP-214 и сертификатом 7F91."
+    },
+    {
+      "type": "testimony", "section": "people", "title": "Показания Амины", "subtitle": "09:40 · преподаватель", "danger": false,
+      "content": { "speaker": "Амина С.", "quote": "В 02:31 я открыла материалы лекции и выключила ноутбук. Письма от поддержки ночью не получала. О закрытом исследовательском архиве я узнала только утром." },
+      "hint": "Её рассказ о письме можно проверить по результату карантина."
+    },
+    {
+      "type": "testimony", "section": "people", "title": "Показания Тимура", "subtitle": "09:45 · системный администратор", "danger": true,
+      "content": { "speaker": "Тимур К.", "quote": "С двух до четырёх я был дома, рабочую станцию не использовал и сертификатов не выпускал. Ключ TK-04 всё время был у меня; никому его не передавал." },
+      "hint": "Сравните это утверждение с записью о физическом подтверждении аппаратным ключом."
+    },
+    {
+      "type": "log", "section": "files", "title": "Журнал физического доступа", "subtitle": "03:02–03:24 · серверная", "danger": true,
+      "content": { "lines": [
+        { "text": "03:02:17 door=server-room badge=timur.k second_factor=verified direction=in", "anomaly": true },
+        { "text": "03:05:40 station=ADM-T04 console_unlock=timur.k hardware_key=TK-04", "anomaly": true },
+        { "text": "03:24:03 door=server-room badge=timur.k direction=out", "anomaly": true },
+        { "text": "02:00–04:00 door=server-room other_entries=0", "anomaly": false }
+      ] },
+      "hint": "Независимый журнал доступа позволяет проверить алиби администратора."
+    }
+  ]
+}

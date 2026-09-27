@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Use threads for build workers in Windows environments that restrict child processes.
+  experimental: { workerThreads: true, useTypeScriptCli: false },
 };
 
 export default nextConfig;
