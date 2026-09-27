@@ -12,3 +12,12 @@ export type Evidence = {
   title: string; subtitle: string; danger: boolean; content: EvidenceContent;
   hint: string; position: number;
 };
+
+// What the UI is allowed to see. Deliberately has no culprit_id / culprit_index anywhere
+// on this type — the server loader must never put the answer in here.
+export type CaseBundle = {
+  source: "supabase" | "fallback";
+  case: PublicCase;
+  suspects: Suspect[];
+  evidence: Evidence[];
+};

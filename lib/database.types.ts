@@ -26,8 +26,12 @@ export type Database = {
       attempts: Table<AttemptRow, "session_id" | "case_id" | "suspect_id" | "correct" | "score">;
     };
     Views: { public_cases: { Row: PublicCase; Relationships: [] } };
-    Functions: Record<string, never>;
+    Functions: {
+      create_case_from_payload: { Args: { p_payload: Json }; Returns: string };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
 };
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
