@@ -11,7 +11,7 @@ import { getFallbackCase } from "./fallback-case.server";
 import { ApiError } from "./api-error";
 import type { GenerationResult } from "./case-types";
 
-const modelDefault = "nvidia/nemotron-3-super-120b-a12b:free";
+const modelDefault = "nvidia/nemotron-3.5-lightning:free";
 const sections: EvidenceSection[] = ["mail", "logs", "files", "people"];
 const types: EvidenceType[] = ["log", "metadata", "network", "testimony"];
 

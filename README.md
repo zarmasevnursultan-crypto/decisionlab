@@ -52,7 +52,7 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Публичный ключ вспомогательных клиентов; игровой API использует серверный клиент |
 | `SUPABASE_SERVICE_ROLE_KEY` | Серверный ключ базы; никогда не добавлять префикс `NEXT_PUBLIC` |
 | `OPENROUTER_API_KEY` | Серверный ключ OpenRouter |
-| `OPENROUTER_MODEL` | Модель; значение по умолчанию в коде: `nvidia/nemotron-3-super-120b-a12b:free` |
+| `OPENROUTER_MODEL` | Модель; значение по умолчанию в коде: `nvidia/nemotron-3.5-lightning:free` |
 | `DECISIONLAB_DATA_DIR` | Каталог локальных данных; по умолчанию `.decisionlab` в корне проекта |
 | `TEST_BASE_URL` | Адрес сервера для HTTP-тестов; по умолчанию `http://localhost:3000` |
 
