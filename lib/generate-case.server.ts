@@ -90,18 +90,28 @@ export async function generateWithOpenRouter(apiKey: string, inputModel: string,
       ],
     }),
     signal: AbortSignal.timeout(90_000),
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.name === "TimeoutError") throw new ApiError("AI_TIMEOUT", "Модель не успела создать дело за 90 секунд. Повторите позже или выберите локальное дело.", 503);
+    throw error;
   });
-  if (!response.ok) {
-    const details: Record<string, string | number> = { upstreamStatus: response.status };
+  const body: unknown = await response.json().catch((error: unknown) => {
+    if (error instanceof Error && error.name === "TimeoutError") throw new ApiError("AI_TIMEOUT", "Модель не успела передать дело за 90 секунд. Повторите позже или выберите локальное дело.", 503);
+    return null;
+  });
+  const embeddedError = isObject(body) && isObject(body.error) ? body.error : null;
+  if (!response.ok || embeddedError) {
+    const embeddedStatus = Number(embeddedError?.code);
+    const status = response.ok ? (Number.isInteger(embeddedStatus) && embeddedStatus >= 400 && embeddedStatus <= 599 ? embeddedStatus : 502) : response.status;
+    const details: Record<string, string | number> = { upstreamStatus: status, model: inputModel };
     const retryAfter = Number(response.headers.get("retry-after"));
     if (Number.isFinite(retryAfter) && retryAfter > 0) details.retryAfterSeconds = retryAfter;
-    if (response.status === 429) throw new ApiError("AI_RATE_LIMITED", "OpenRouter ограничил запросы к выбранной модели. Попробуйте позже или выберите локальное дело. При необходимости измените OPENROUTER_MODEL.", 503, details);
-    if (response.status === 401 || response.status === 403) throw new ApiError("AI_ACCESS_DENIED", "OpenRouter отклонил доступ. Проверьте ключ и доступ к выбранной модели в настройках аккаунта.", 503, details);
-    if (response.status === 402) throw new ApiError("AI_CREDITS_REQUIRED", "OpenRouter сообщает о недостаточном балансе. Проверьте аккаунт или используйте локальное дело.", 503, details);
-    if (response.status === 404) throw new ApiError("AI_MODEL_UNAVAILABLE", "Выбранная модель недоступна в OpenRouter. Проверьте OPENROUTER_MODEL или используйте локальное дело.", 503, details);
-    throw new Error(`OpenRouter HTTP ${response.status}`);
+    if (status === 429) throw new ApiError("AI_RATE_LIMITED", "OpenRouter ограничил запросы к выбранной модели. Попробуйте позже или выберите локальное дело. При необходимости измените OPENROUTER_MODEL.", 503, details);
+    if (status === 401 || status === 403) throw new ApiError("AI_ACCESS_DENIED", "OpenRouter отклонил доступ. Проверьте ключ и доступ к выбранной модели в настройках аккаунта.", 503, details);
+    if (status === 402) throw new ApiError("AI_CREDITS_REQUIRED", "OpenRouter сообщает о недостаточном балансе. Проверьте аккаунт или используйте локальное дело.", 503, details);
+    if (status === 404) throw new ApiError("AI_MODEL_UNAVAILABLE", "Выбранная модель недоступна в OpenRouter. Проверьте OPENROUTER_MODEL или используйте локальное дело.", 503, details);
+    if (status >= 500) throw new ApiError("AI_PROVIDER_UNAVAILABLE", "Сервис выбранной ИИ-модели перегружен или временно недоступен. Повторите позже либо выберите локальное дело. Это не ошибка Supabase.", 503, details);
+    throw new ApiError("AI_REQUEST_REJECTED", "OpenRouter отклонил параметры запроса к модели. Проверьте OPENROUTER_MODEL.", 503, details);
   }
-  const body: unknown = await response.json();
   if (!isObject(body) || !Array.isArray(body.choices) || !isObject(body.choices[0]) || !isObject(body.choices[0].message) || typeof body.choices[0].message.content !== "string") throw new Error("OpenRouter returned an invalid response");
   if (body.choices[0].finish_reason === "length") throw new Error("Ответ оборван по лимиту токенов: сократи текст, но сохрани все поля и 8 материалов");
   const content = body.choices[0].message.content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -143,7 +153,15 @@ export async function generateCase(previousTitle: string, mode: "auto" | "ai" | 
         payload = candidate; usedMode = "ai"; notice = "ИИ создал дело; структурная проверка пройдена."; break;
       } catch (error) {
         console.error("[case-generation] attempt", attempts, error instanceof Error ? error.message : "unknown");
-        if (error instanceof ApiError) { providerFailure = error; break; }
+        if (error instanceof ApiError) {
+          providerFailure = error;
+          if (index === 0 && ["AI_PROVIDER_UNAVAILABLE", "AI_TIMEOUT"].includes(error.code) && !error.details?.retryAfterSeconds) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            continue;
+          }
+          break;
+        }
+        providerFailure = null;
         feedback = error instanceof Error ? error.message.slice(0, 400) : "Invalid response";
       }
     }

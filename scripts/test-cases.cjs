@@ -152,12 +152,25 @@ test("AI retries malformed output, retains successful output locally and provide
     global.fetch = async () => Response.json({ choices: [{ finish_reason: "length", message: { content: JSON.stringify(payload) } }] });
     await assert.rejects(generateCase("previous", "ai"), { code: "AI_UNAVAILABLE" });
     global.fetch = async () => new Response("unavailable", { status: 503 });
-    await assert.rejects(generateCase("previous", "ai"), { code: "AI_UNAVAILABLE" });
+    await assert.rejects(generateCase("previous", "ai"), { code: "AI_PROVIDER_UNAVAILABLE" });
     const fallback = await generateCase("previous", "auto"); assert.equal(fallback.generation.mode, "local");
     const fixed = await generateCase("", "fallback"); assert.equal(fixed.bundle.case.title, getFallbackCase().title);
     let limitedCalls = 0;
     global.fetch = async () => { limitedCalls++; return new Response("limited", { status: 429, headers: { "Retry-After": "60" } }); };
-    await assert.rejects(generateCase("", "ai"), { code: "AI_RATE_LIMITED", details: { upstreamStatus: 429, retryAfterSeconds: 60 } });
+    await assert.rejects(generateCase("", "ai"), (error) => error.code === "AI_RATE_LIMITED" && error.details.upstreamStatus === 429 && error.details.retryAfterSeconds === 60);
     assert.equal(limitedCalls, 1, "Do not immediately retry a rate-limited model");
+    let overloadedCalls = 0;
+    global.fetch = async () => { overloadedCalls++; return Response.json({ error: { code: 503, message: "Upstream error from Nvidia: Service temporarily overloaded" } }); };
+    await assert.rejects(generateCase("", "ai"), (error) => error.code === "AI_PROVIDER_UNAVAILABLE" && error.details.upstreamStatus === 503);
+    assert.equal(overloadedCalls, 2);
+    let recoveredCalls = 0;
+    global.fetch = async () => ++recoveredCalls === 1 ? Response.json({ error: { code: 503 } }) : Response.json({ choices: [{ message: { content: JSON.stringify(payload) } }] });
+    assert.equal((await generateCase("", "ai")).generation.mode, "ai");
+    global.fetch = async () => Response.json({ error: { code: 402, message: "No credits" } });
+    await assert.rejects(generateCase("", "ai"), { code: "AI_CREDITS_REQUIRED" });
+    global.fetch = async () => { throw new DOMException("Timed out", "TimeoutError"); };
+    await assert.rejects(generateCase("", "ai"), { code: "AI_TIMEOUT" });
+    global.fetch = async () => ({ json: async () => { throw new DOMException("Body timed out", "TimeoutError"); } });
+    await assert.rejects(generateCase("", "ai"), { code: "AI_TIMEOUT" });
   } finally { global.fetch = fetchOriginal; delete process.env.OPENROUTER_API_KEY; }
 });
