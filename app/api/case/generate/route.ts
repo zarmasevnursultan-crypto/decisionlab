@@ -2,6 +2,8 @@ import { cookieOptions, handle, ok, readBody } from "@/lib/api.server";
 import { ApiError } from "@/lib/api-error";
 import { generateCase } from "@/lib/generate-case.server";
 
+export const maxDuration = 240;
+
 export async function POST(request: Request) {
   return handle(async () => {
     const body = await readBody(request);

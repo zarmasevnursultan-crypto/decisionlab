@@ -45,6 +45,8 @@ test("Vercel first visit uses Supabase and never falls back to filesystem writes
     assert(calls.some((url) => url.includes("/rpc/create_case_from_payload")));
     global.fetch = async () => Response.json({ message: "database unavailable" }, { status: 400 });
     await assert.rejects(loadCase(), { code: "DATABASE_UNAVAILABLE" });
+    global.fetch = async () => Response.json({ code: "PGRST202", message: "Missing RPC" }, { status: 404 });
+    await assert.rejects(loadCase(), { code: "DATABASE_MIGRATION_REQUIRED" });
     const after = fs.existsSync(path.join(directory, "data.json")) ? fs.readFileSync(path.join(directory, "data.json"), "utf8") : null;
     assert.equal(after, before);
   } finally {
@@ -138,11 +140,17 @@ test("AI retries malformed output, retains successful output locally and provide
   process.env.OPENROUTER_API_KEY = "test-only-placeholder";
   let calls = 0;
   const payload = generateLocalCase();
-  global.fetch = async () => { calls++; return Response.json({ choices: [{ message: { content: calls === 1 ? "invalid JSON" : JSON.stringify(payload) } }] }); };
+  global.fetch = async (_url, options) => {
+    calls++;
+    if (calls === 2) assert(JSON.parse(options.body).messages[0].content.includes("JSON"), "Retry includes validation feedback");
+    return Response.json({ choices: [{ message: { content: calls === 1 ? "invalid JSON" : "```json\n" + JSON.stringify(payload) + "\n```" } }] });
+  };
   try {
     const result = await generateCase("previous", "ai");
     assert.equal(calls, 2); assert.equal(result.generation.mode, "ai"); assert.equal(result.bundle.case.title, payload.title);
     assert(!JSON.stringify(result).includes("culprit"));
+    global.fetch = async () => Response.json({ choices: [{ finish_reason: "length", message: { content: JSON.stringify(payload) } }] });
+    await assert.rejects(generateCase("previous", "ai"), { code: "AI_UNAVAILABLE" });
     global.fetch = async () => new Response("unavailable", { status: 503 });
     await assert.rejects(generateCase("previous", "ai"), { code: "AI_UNAVAILABLE" });
     const fallback = await generateCase("previous", "auto"); assert.equal(fallback.generation.mode, "local");
